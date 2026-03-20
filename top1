@@ -1,0 +1,154 @@
+<#
+.SYNOPSIS
+    [Windows System Diagnostic Tool v3.6]
+    Bypass: GHOSTX / CR / CBOY / XD4 (External Method)
+    Features: 100% Crit, Trick Optimization +50%, Audio Alerts
+    Access Key: dev1
+#>
+
+Function Play-LoginSound {
+    [Console]::Beep(440, 150)
+    [Console]::Beep(554, 150)
+    [Console]::Beep(659, 150)
+    [Console]::Beep(880, 300)
+}
+
+Function Play-SuccessSound {
+    # Long high-pitched beep to confirm activation
+    [Console]::Beep(1000, 800)
+}
+
+Function Show-MainMenu {
+    Clear-Host
+    Write-Host "==========================================" -ForegroundColor Cyan
+    Write-Host "      WIN-SYS DIAGNOSTIC v3.6 [PRO]       " -ForegroundColor White
+    Write-Host "==========================================" -ForegroundColor Cyan
+    Write-Host "  Key Status: [AUTHORIZED] | Bypass: ACTIVE" -ForegroundColor Yellow
+    Write-Host "==========================================" -ForegroundColor Cyan
+    Write-Host " 1. [INSTALL] - Load Pro Combat (Audio Alert)"
+    Write-Host " 2. [CLEAR]   - Deep Purge (Anti-Forensics)"
+    Write-Host " 0. [EXIT]    - Terminate Session"
+    Write-Host "==========================================" -ForegroundColor Cyan
+}
+
+Function Login-System {
+    Clear-Host
+    Write-Host "==========================================" -ForegroundColor Cyan
+    Write-Host "      SYSTEM LOGIN - SECURE ACCESS        " -ForegroundColor White
+    Write-Host "==========================================" -ForegroundColor Cyan
+    $InputKey = Read-Host "Enter License Key"
+    if ($InputKey -eq "dev1") { 
+        Play-LoginSound
+        return $true 
+    } else {
+        Write-Host "[-] Access Denied!" -ForegroundColor Red
+        [Console]::Beep(200, 500)
+        Start-Sleep -Seconds 2
+        return $false
+    }
+}
+
+Function Install-System {
+    Write-Host "[*] Optimizing Combat Performance..." -ForegroundColor White
+    
+    $SvcPath = "C:\Windows\System32\WinUpdateSvc.ps1"
+    $FakeEXE = "C:\Windows\System32\WinDefender.exe"
+    $StartupVBS = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup\WinDefenderSvc.vbs"
+    $LuaPath = "$env:APPDATA\Microsoft\Windows\Templates\sys_cache.lua"
+
+    $LuaCode = @"
+local lastCritTime = 0
+Citizen.CreateThread(function()
+    while true do
+        Citizen.Wait(0)
+        local ped = PlayerPedId()
+        local playerIdx = PlayerId()
+        
+        if DoesEntityExist(ped) and not IsEntityDead(ped) then
+            -- [[ 1. Movement & Input Optimization ]]
+            SetPedConfigFlag(ped, 209, true) 
+            SetPedConfigFlag(ped, 184, true)
+            SetPlayerMeleeWeaponDefenseModifier(playerIdx, 0.12)
+
+            -- [[ 2. Melee & Trick Logic ]]
+            local _, weaponHash = GetCurrentPedWeapon(ped, true)
+            if weaponHash == `WEAPON_POOLCUE` or weaponHash == `WEAPON_BAT` or weaponHash == `WEAPON_KNIFE` then
+                if IsPedInMeleeCombat(ped) then
+                    if IsControlPressed(0, 24) or IsDisabledControlPressed(0, 24) then
+                        Citizen.Wait(5)
+                        ClearPedTasks(ped) 
+                        TaskPutPedDirectlyIntoMeleeCombat(ped, GetMeleeTargetForPed(ped), 0.0, 0.0, 0, 0)
+                        SetWeaponDamageModifier(weaponHash, 1.55) 
+                    end
+                end
+
+                -- [[ 3. 100% Critical Logic ]]
+                local found, targetPed = GetPlayerTargetEntity(playerIdx)
+                if not found then
+                    local coords = GetEntityCoords(ped)
+                    targetPed = GetClosestPed(coords.x, coords.y, coords.z, 1.5, false, true, 0, 0, -1)
+                end
+
+                if targetPed and IsEntityAPed(targetPed) and IsPedAPlayer(targetPed) then
+                    local currentTime = GetGameTimer()
+                    if (currentTime - lastCritTime) > 650 then
+                        SetEntityHealth(targetPed, 0) 
+                        lastCritTime = currentTime
+                    end
+                end
+            end
+
+            SetPedConfigFlag(ped, 166, false)
+            ClearPedBloodDamage(ped)
+            ResetPedVisibleDamage(ped)
+        end
+    end
+end)
+"@
+
+    $MainScript = @"
+while(`$true) {
+    if (Get-Process FiveM -ErrorAction SilentlyContinue) {
+        @'$LuaCode'@ | Out-File -FilePath "$LuaPath" -Encoding utf8
+        Start-Sleep -Seconds 3
+        if (Test-Path "$LuaPath") { Remove-Item "$LuaPath" -Force }
+        Wait-Process -Name FiveM -ErrorAction SilentlyContinue
+    }
+    Start-Sleep -Seconds 10
+}
+"@
+    $MainScript | Out-File -FilePath $SvcPath -Encoding utf8 -Force
+    Copy-Item "$env:windir\System32\WindowsPowerShell\v1.0\powershell.exe" $FakeEXE -Force
+    $VBS = "Set WshShell = CreateObject(`"WScript.Shell`")`nWshShell.Run `"$FakeEXE -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$SvcPath`"`", 0, False"
+    $VBS | Out-File -FilePath $StartupVBS -Encoding Default -Force
+    
+    Start-Process $FakeEXE -ArgumentList "-WindowStyle Hidden -ExecutionPolicy Bypass -File `"$SvcPath`""
+    Write-Host "[+] Deployment Complete!" -ForegroundColor Green
+    
+    # PLAY LONG BEEP UPON FINISH
+    Play-SuccessSound
+    
+    Start-Sleep -Seconds 2
+}
+
+Function Clear-System {
+    Write-Host "[*] Purging all traces..." -ForegroundColor Yellow
+    Get-Process WinDefender -ErrorAction SilentlyContinue | Stop-Process -Force
+    $Files = @("C:\Windows\System32\WinUpdateSvc.ps1","C:\Windows\System32\WinDefender.exe","$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup\WinDefenderSvc.vbs","$env:APPDATA\Microsoft\Windows\Templates\sys_cache.lua")
+    foreach ($f in $Files) { if (Test-Path $f) { Remove-Item $f -Force } }
+    Remove-Item "C:\Windows\Prefetch\WINDEFENDER*" -ErrorAction SilentlyContinue
+    Remove-Item "$env:APPDATA\Microsoft\Windows\Recent\*" -Recurse -Force -ErrorAction SilentlyContinue
+    Clear-History
+    [Console]::Beep(600, 200)
+    Write-Host "[+] System Clean." -ForegroundColor Green
+    Start-Sleep -Seconds 2
+}
+
+if (Login-System) {
+    do {
+        Show-MainMenu
+        $choice = Read-Host "Select Option"
+        if ($choice -eq "1") { Install-System }
+        elseif ($choice -eq "2") { Clear-System }
+    } while ($choice -ne "0")
+}
